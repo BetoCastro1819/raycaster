@@ -70,8 +70,8 @@ int main()
 	Player player = {
 		.position = (Vector2) { screenWidth/2, screenHeigth/2 },
 		.direction = (Vector2) { 0, -100 },
-		.rotationSpeed = 0.01f,
-		.speed = 200.f
+		.rotationSpeed = 0.1f,
+		.speed = 150.f
 	};
 
 	Vector2 plane = { 100, 0 };
@@ -119,39 +119,38 @@ int main()
 			{
 				for (int x = 0; x < mapWidth; ++x)
 				{
-					DrawLineV((Vector2){ x * pixelCellSize, 0 }, (Vector2){ x * pixelCellSize, screenHeigth }, GRAY);
+					// DrawLineV((Vector2){ x * pixelCellSize, 0 }, (Vector2){ x * pixelCellSize, screenHeigth }, GRAY);
 
 					if (worldMap[y][x] != 0)
 					{
-						DrawRectangle(x * pixelCellSize, y * pixelCellSize, pixelCellSize, pixelCellSize, BLUE);
+						// DrawRectangle(x * pixelCellSize, y * pixelCellSize, pixelCellSize, pixelCellSize, BLUE);
 					}
 				}
 			
-				DrawLineV((Vector2){ 0, y * pixelCellSize }, (Vector2){ screenWidth, y * pixelCellSize }, GRAY);
+				// DrawLineV((Vector2){ 0, y * pixelCellSize }, (Vector2){ screenWidth, y * pixelCellSize }, GRAY);
 			}
 
 			// Draw Player
-			DrawCircleV(player.position, 10.0f, GREEN);
-			DrawLineV(player.position, Vector2Add(player.position, player.direction), BLACK);
+			// DrawCircleV(player.position, 10.0f, GREEN);
+			// DrawLineV(player.position, Vector2Add(player.position, player.direction), BLACK);
 			
 			Vector2 planePos = Vector2Add(player.position, player.direction);
 			Vector2 planeLeftEdge = Vector2Subtract(planePos, plane);
-			DrawLineV(planePos, planeLeftEdge, BLUE);
+			// DrawLineV(planePos, planeLeftEdge, BLUE);
 			Vector2 planeRightEdge = Vector2Add(planePos, plane);
-			DrawLineV(planePos, planeRightEdge, BLUE);
-
+			// DrawLineV(planePos, planeRightEdge, BLUE);
 
 			Vector2 playerMapPosition = { player.position.x / (float)pixelCellSize, player.position.y / (float)pixelCellSize };
 
 			for (int i = 0; i < screenWidth; ++i)
 			{
-				if (i != (screenWidth / 2)) continue;
+				// if (i != (screenWidth / 2)) continue;
 
 				// X-coordinate in camera space
 				float cameraX = 2.f * (float)i / (float)screenWidth - 1.f;
 				Vector2 rayDir = Vector2Add(player.direction, Vector2Scale(plane, cameraX));
 				rayDir = Vector2Normalize(rayDir);
-				DrawLineV(player.position, Vector2Add(player.position, Vector2Scale(rayDir, 1000)), RED);
+				// DrawLineV(player.position, Vector2Add(player.position, Vector2Scale(rayDir, 1000)), RED);
 
 				double deltaDistX = AlmostZero(rayDir.x) ? 1e30 : fabs(1.f / rayDir.x);
 				double deltaDistY = AlmostZero(rayDir.y) ? 1e30 : fabs(1.f / rayDir.y);
@@ -187,16 +186,17 @@ int main()
 					sideDistY = (rayCuadrantPosition.y + 1.0f - playerMapPosition.y) * deltaDistY;
 				}
 
+				double perpWallDist;
 				SideHitType sideHitType;
 				bool hit = false;
 				int segmentCount = 0;
-				while (!hit && segmentCount < mapWidth)
+				while (!hit) // && segmentCount <= mapWidth)
 				{
 					Vector2 pixelSideDist = { sideDistX * (float)pixelCellSize, sideDistY * (float)pixelCellSize };
 					// printf("sideDist: { %f, %f }\n", sideDistX, sideDistY);
 					// printf("pixelSideDist: { %i, %i }\n", (int)pixelSideDist.x, (int)pixelSideDist.y);
-					DrawCircleV(Vector2Add(player.position, Vector2Scale(rayDir, pixelSideDist.x)), 3.f, RED);
-					DrawCircleV(Vector2Add(player.position, Vector2Scale(rayDir, pixelSideDist.y)), 3.f, GREEN);
+					// DrawCircleV(Vector2Add(player.position, Vector2Scale(rayDir, pixelSideDist.x)), 3.f, RED);
+					// DrawCircleV(Vector2Add(player.position, Vector2Scale(rayDir, pixelSideDist.y)), 3.f, GREEN);
 
 					if (sideDistX < sideDistY)
 					{
@@ -218,6 +218,34 @@ int main()
 
 					segmentCount++;
 				}
+
+				// TODO: fix "fisheye" effect
+				if (sideHitType == VERTICAL)
+					perpWallDist = (sideDistX - deltaDistX);
+				else
+					perpWallDist = (sideDistY - deltaDistY);
+
+				int lineHeight = (int)(screenHeigth / perpWallDist);
+
+				int drawStart = -lineHeight / 2 + screenHeigth / 2;
+				if (drawStart < 0)
+					drawStart = 0;
+
+				int drawEnd = lineHeight / 2 + screenHeigth / 2;
+				if (drawEnd >= screenHeigth)
+					drawEnd = screenHeigth - 1;
+
+				Color wallColor;
+				switch (worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x])
+				{
+				case 1: wallColor = RED; break;
+				case 2: wallColor = GREEN; break;
+				case 3: wallColor = BLUE; break;
+				case 4: wallColor = GRAY; break;
+				default: wallColor = MAGENTA; break;
+				}
+
+				DrawLine(i, drawStart, i, drawEnd, wallColor);
 			}
 
 			//DrawTexture(screenTexture, 0, 0, RAYWHITE);
