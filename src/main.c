@@ -3,7 +3,7 @@
 #include "raymath.h"
 
 const int screenWidth = 800;
-const int screenHeigth = 800;
+const int screenHeigth = 600;
 #define mapWidth 24
 #define mapHeight 24
 
@@ -74,19 +74,12 @@ int main()
 		.speed = 150.f
 	};
 
-	Vector2 plane = { 100, 0 };
+	Vector2 plane = { 80, 0 };
 
 	const int pixelCellSize = screenWidth / mapWidth;
 
 	while (!WindowShouldClose())
 	{
-/*
-		Color* pixels = LoadImageColors(screenImage);
-		SetScreenPixelColor(pixels, (int)(screenWidth / 2), (int)(screenHeigth / 2), WHITE);
-		UpdateTexture(screenTexture, pixels);
-		UnloadImageColors(pixels);
-*/
-
 		float deltaTime = GetFrameTime();
 		Vector2 normalizedDir = Vector2Normalize(player.direction);
 
@@ -144,16 +137,14 @@ int main()
 
 			for (int i = 0; i < screenWidth; ++i)
 			{
-				// if (i != (screenWidth / 2)) continue;
-
 				// X-coordinate in camera space
-				float cameraX = 2.f * (float)i / (float)screenWidth - 1.f;
+				float cameraX = 2 * i / (float)screenWidth - 1;
 				Vector2 rayDir = Vector2Add(player.direction, Vector2Scale(plane, cameraX));
 				rayDir = Vector2Normalize(rayDir);
 				// DrawLineV(player.position, Vector2Add(player.position, Vector2Scale(rayDir, 1000)), RED);
 
-				double deltaDistX = AlmostZero(rayDir.x) ? 1e30 : fabs(1.f / rayDir.x);
-				double deltaDistY = AlmostZero(rayDir.y) ? 1e30 : fabs(1.f / rayDir.y);
+				double deltaDistX = AlmostZero(rayDir.x) ? 1e30 : fabs(1 / rayDir.x);
+				double deltaDistY = AlmostZero(rayDir.y) ? 1e30 : fabs(1 / rayDir.y);
 
 				Vector2 rayCuadrantPosition = { (int)playerMapPosition.x, (int)playerMapPosition.y };
 
@@ -192,7 +183,7 @@ int main()
 				int segmentCount = 0;
 				while (!hit) // && segmentCount <= mapWidth)
 				{
-					Vector2 pixelSideDist = { sideDistX * (float)pixelCellSize, sideDistY * (float)pixelCellSize };
+					// Vector2 pixelSideDist = { sideDistX * (float)pixelCellSize, sideDistY * (float)pixelCellSize };
 					// printf("sideDist: { %f, %f }\n", sideDistX, sideDistY);
 					// printf("pixelSideDist: { %i, %i }\n", (int)pixelSideDist.x, (int)pixelSideDist.y);
 					// DrawCircleV(Vector2Add(player.position, Vector2Scale(rayDir, pixelSideDist.x)), 3.f, RED);
@@ -219,13 +210,12 @@ int main()
 					segmentCount++;
 				}
 
-				// TODO: fix "fisheye" effect
 				if (sideHitType == VERTICAL)
-					perpWallDist = (sideDistX - deltaDistX);
+					perpWallDist = Vector2Length(Vector2Scale(rayDir, (sideDistX - deltaDistX))) * cosf(Vector2Angle(player.direction, rayDir));
 				else
-					perpWallDist = (sideDistY - deltaDistY);
+					perpWallDist = Vector2Length(Vector2Scale(rayDir, (sideDistY - deltaDistY))) * cosf(Vector2Angle(player.direction, rayDir));
 
-				int lineHeight = (int)(screenHeigth / perpWallDist);
+				int lineHeight = (int)(1 * screenHeigth / perpWallDist);
 
 				int drawStart = -lineHeight / 2 + screenHeigth / 2;
 				if (drawStart < 0)
@@ -245,10 +235,11 @@ int main()
 				default: wallColor = MAGENTA; break;
 				}
 
+				if (sideHitType == HORIZONTAL)
+					wallColor = ColorBrightness(wallColor, -0.1f);
+
 				DrawLine(i, drawStart, i, drawEnd, wallColor);
 			}
-
-			//DrawTexture(screenTexture, 0, 0, RAYWHITE);
 		
 		EndDrawing();
 	}
