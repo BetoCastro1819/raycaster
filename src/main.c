@@ -29,6 +29,21 @@ void SetScreenPixelColor(Color* pixelsArray, int posX, int posY, Color pixelColo
 	pixelsArray[posX + posY * screenWidth] = pixelColor;
 }
 
+Color GetWallColor(int wallType)
+{
+	Color wallColor;
+	switch (wallType)
+	{
+	case 1: wallColor = RED; break;
+	case 2: wallColor = GREEN; break;
+	case 3: wallColor = BLUE; break;
+	case 4: wallColor = GRAY; break;
+	default: wallColor = MAGENTA; break;
+	}
+
+	return wallColor;
+}
+
 int worldMap[mapWidth][mapHeight] =
 {
 	{ 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 },
@@ -64,9 +79,6 @@ int main()
 	
 	InitWindow(screenWidth, screenHeigth, "Simple Raycaster");
 
-	Image screenImage = GenImageColor(screenWidth, screenHeigth, RED);
-	Texture2D screenTexture = LoadTextureFromImage(screenImage);
-
 	Player player = {
 		.position = (Vector2) { screenWidth/2, screenHeigth/2 },
 		.direction = (Vector2) { 0, -100 },
@@ -77,6 +89,9 @@ int main()
 	Vector2 plane = { 80, 0 };
 
 	const int pixelCellSize = screenWidth / mapWidth;
+
+	Vector2 screenCenter = { screenWidth/2, screenHeigth/2 };
+	bool draw2D = false;
 
 	while (!WindowShouldClose())
 	{
@@ -102,36 +117,49 @@ int main()
 			plane = Vector2Rotate(plane, -player.rotationSpeed);
 		}
 
+		if (IsKeyPressed(KEY_M))
+		{
+			draw2D = !draw2D;
+		}
 
 		BeginDrawing();
 
 			ClearBackground(WHITE);
 
-			// Draw World Map
-			for (int y = 0; y < mapHeight; ++y)
+			// DrawRectangle(screenCenter.x - 10, screenCenter.y - 10, 20, 20, RED);
+
+			if (draw2D)
 			{
-				for (int x = 0; x < mapWidth; ++x)
+				// Draw World Map
+				for (int y = 0; y < mapHeight; ++y)
 				{
-					// DrawLineV((Vector2){ x * pixelCellSize, 0 }, (Vector2){ x * pixelCellSize, screenHeigth }, GRAY);
-
-					if (worldMap[y][x] != 0)
+					for (int x = 0; x < mapWidth; ++x)
 					{
-						// DrawRectangle(x * pixelCellSize, y * pixelCellSize, pixelCellSize, pixelCellSize, BLUE);
-					}
-				}
-			
-				// DrawLineV((Vector2){ 0, y * pixelCellSize }, (Vector2){ screenWidth, y * pixelCellSize }, GRAY);
-			}
+						// DrawLineV((Vector2){ relativePosX, relativePosY }, (Vector2){ relativePosX, screenHeigth - relativePosY }, GRAY);
 
-			// Draw Player
-			// DrawCircleV(player.position, 10.0f, GREEN);
-			// DrawLineV(player.position, Vector2Add(player.position, player.direction), BLACK);
-			
-			Vector2 planePos = Vector2Add(player.position, player.direction);
-			Vector2 planeLeftEdge = Vector2Subtract(planePos, plane);
-			// DrawLineV(planePos, planeLeftEdge, BLUE);
-			Vector2 planeRightEdge = Vector2Add(planePos, plane);
-			// DrawLineV(planePos, planeRightEdge, BLUE);
+						if (worldMap[y][x] != 0)
+						{
+							DrawRectangle(
+								screenCenter.x + x * pixelCellSize - player.position.x,
+								screenCenter.y + y * pixelCellSize - player.position.y,
+								pixelCellSize, pixelCellSize, GetWallColor(worldMap[y][x]));
+						}
+					}
+				
+					// DrawLineV((Vector2){ player.position.x - screenWidth, player.position.y + y * pixelCellSize }, (Vector2){ player.position.x - screenWidth, player.position.y + y * pixelCellSize }, GRAY);
+				}
+
+				// Draw Player
+				DrawCircleV(screenCenter, 10.0f, GREEN);
+				DrawLineV(screenCenter, Vector2Add(screenCenter, player.direction), BLACK);
+				
+				// Draw view plane
+				Vector2 planePos = Vector2Add(screenCenter, player.direction);
+				Vector2 planeLeftEdge = Vector2Subtract(planePos, plane);
+				DrawLineV(planePos, planeLeftEdge, BLUE);
+				Vector2 planeRightEdge = Vector2Add(planePos, plane);
+				DrawLineV(planePos, planeRightEdge, BLUE);
+			}
 
 			Vector2 playerMapPosition = { player.position.x / (float)pixelCellSize, player.position.y / (float)pixelCellSize };
 
@@ -210,42 +238,38 @@ int main()
 					segmentCount++;
 				}
 
-				if (sideHitType == VERTICAL)
-					perpWallDist = Vector2Length(Vector2Scale(rayDir, (sideDistX - deltaDistX))) * cosf(Vector2Angle(player.direction, rayDir));
-				else
-					perpWallDist = Vector2Length(Vector2Scale(rayDir, (sideDistY - deltaDistY))) * cosf(Vector2Angle(player.direction, rayDir));
-
-				int lineHeight = (int)(1 * screenHeigth / perpWallDist);
-
-				int drawStart = -lineHeight / 2 + screenHeigth / 2;
-				if (drawStart < 0)
-					drawStart = 0;
-
-				int drawEnd = lineHeight / 2 + screenHeigth / 2;
-				if (drawEnd >= screenHeigth)
-					drawEnd = screenHeigth - 1;
-
-				Color wallColor;
-				switch (worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x])
+				if (!draw2D)
 				{
-				case 1: wallColor = RED; break;
-				case 2: wallColor = GREEN; break;
-				case 3: wallColor = BLUE; break;
-				case 4: wallColor = GRAY; break;
-				default: wallColor = MAGENTA; break;
+					if (sideHitType == VERTICAL)
+						perpWallDist = Vector2Length(Vector2Scale(rayDir, (sideDistX - deltaDistX))) * cosf(Vector2Angle(player.direction, rayDir));
+					else
+						perpWallDist = Vector2Length(Vector2Scale(rayDir, (sideDistY - deltaDistY))) * cosf(Vector2Angle(player.direction, rayDir));
+
+					int lineHeight = (int)(1 * screenHeigth / perpWallDist);
+
+					int drawStart = -lineHeight / 2 + screenHeigth / 2;
+					if (drawStart < 0)
+						drawStart = 0;
+
+					int drawEnd = lineHeight / 2 + screenHeigth / 2;
+					if (drawEnd >= screenHeigth)
+						drawEnd = screenHeigth - 1;
+
+					Color wallColor = GetWallColor(worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x]);
+
+					if (sideHitType == HORIZONTAL)
+						wallColor = ColorBrightness(wallColor, -0.1f);
+
+					DrawLine(i, drawStart, i, drawEnd, wallColor);
 				}
 
-				if (sideHitType == HORIZONTAL)
-					wallColor = ColorBrightness(wallColor, -0.1f);
+				// Draw UI
+				DrawText(TextFormat("Player position: %.2f %.2f", player.position.x, player.position.y), 10, 10, 20, BLACK);
 
-				DrawLine(i, drawStart, i, drawEnd, wallColor);
 			}
 		
 		EndDrawing();
 	}
-
-	UnloadTexture(screenTexture);
-	UnloadImage(screenImage);
 
 	CloseWindow();
 	return 0;
