@@ -2,7 +2,7 @@
 #include "raylib.h"
 #include "raymath.h"
 
-const int screenWidth = 800;
+const int screenWidth = 900;
 const int screenHeigth = 600;
 #define mapWidth 24
 #define mapHeight 24
@@ -93,6 +93,9 @@ int main()
 	Vector2 screenCenter = { screenWidth/2, screenHeigth/2 };
 	bool draw2D = false;
 
+	Image screenImage = GenImageColor(screenWidth, screenHeigth, WHITE);
+	Texture screenTexture = LoadTextureFromImage(screenImage);
+
 	while (!WindowShouldClose())
 	{
 		float deltaTime = GetFrameTime();
@@ -127,6 +130,8 @@ int main()
 			ClearBackground(WHITE);
 
 			// DrawRectangle(screenCenter.x - 10, screenCenter.y - 10, 20, 20, RED);
+
+			Color* pixels = LoadImageColors(screenImage);
 
 			if (draw2D)
 			{
@@ -260,16 +265,29 @@ int main()
 					if (sideHitType == HORIZONTAL)
 						wallColor = ColorBrightness(wallColor, -0.1f);
 
-					DrawLine(i, drawStart, i, drawEnd, wallColor);
+					for (int posY = drawStart; posY < drawEnd; posY++)
+					{
+						SetScreenPixelColor(pixels, i, posY, wallColor);
+					}
 				}
-
-				// Draw UI
-				DrawText(TextFormat("Player position: %.2f %.2f", player.position.x, player.position.y), 10, 10, 20, BLACK);
-
 			}
-		
+
+			int x = screenWidth/2;
+			int y = screenHeigth/2;
+			pixels[x + y * screenWidth] = RED;
+
+			UpdateTexture(screenTexture, pixels);
+            UnloadImageColors(pixels);
+			DrawTexture(screenTexture, 0, 0, WHITE);
+
+			// Draw UI
+			DrawText(TextFormat("Player position: %.2f %.2f", player.position.x, player.position.y), 10, 10, 20, BLACK);
+
 		EndDrawing();
 	}
+
+	UnloadTexture(screenTexture);
+	UnloadImage(screenImage);
 
 	CloseWindow();
 	return 0;
