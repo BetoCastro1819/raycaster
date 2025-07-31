@@ -3,9 +3,11 @@
 #include "raymath.h"
 
 const int screenWidth = 900;
-const int screenHeigth = 600;
+const int screenHeight = 600;
 #define mapWidth 24
 #define mapHeight 24
+#define wallTextureCount 8
+#define wallTextureSize 64
 
 typedef struct Player {
 	Vector2 position;
@@ -46,30 +48,30 @@ Color GetWallColor(int wallType)
 
 int worldMap[mapWidth][mapHeight] =
 {
-	{ 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,2,2,2,2,2,0,0,0,0,3,0,3,0,3,0,0,0,1 },
-	{ 1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,3,0,0,0,3,0,0,0,1 },
-	{ 1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,2,2,0,2,2,0,0,0,0,3,0,3,0,3,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,4,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,4,0,0,0,0,5,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,4,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,4,0,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 },
-	{ 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 }
+	{ 4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,7,7,7,7,7,7,7,7 },
+	{ 4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0,0,7 },
+	{ 4,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7 },
+	{ 4,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7 },
+	{ 4,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0,0,7 },
+	{ 4,0,4,0,0,0,0,5,5,5,5,5,5,5,5,5,7,7,0,7,7,7,7,7 },
+	{ 4,0,5,0,0,0,0,5,0,5,0,5,0,5,0,5,7,0,0,0,7,7,7,1 },
+	{ 4,0,6,0,0,0,0,5,0,0,0,0,0,0,0,5,7,0,0,0,0,0,0,8 },
+	{ 4,0,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,7,7,1 },
+	{ 4,0,8,0,0,0,0,5,0,0,0,0,0,0,0,5,7,0,0,0,0,0,0,8 },
+	{ 4,0,0,0,0,0,0,5,0,0,0,0,0,0,0,5,7,0,0,0,7,7,7,1 },
+	{ 4,0,0,0,0,0,0,5,5,5,5,0,5,5,5,5,7,7,7,7,7,7,7,1 },
+	{ 6,6,6,6,6,6,6,6,6,6,6,0,6,6,6,6,6,6,6,6,6,6,6,6 },
+	{ 8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4 },
+	{ 6,6,6,6,6,6,0,6,6,6,6,0,6,6,6,6,6,6,6,6,6,6,6,6 },
+	{ 4,4,4,4,4,4,0,4,4,4,6,0,6,2,2,2,2,2,2,2,3,3,3,3 },
+	{ 4,0,0,0,0,0,0,0,0,4,6,0,6,2,0,0,0,0,0,2,0,0,0,2 },
+	{ 4,0,0,0,0,0,0,0,0,0,0,0,6,2,0,0,5,0,0,2,0,0,0,2 },
+	{ 4,0,0,0,0,0,0,0,0,4,6,0,6,2,0,0,0,0,0,2,2,0,2,2 },
+	{ 4,0,6,0,6,0,0,0,0,4,6,0,0,0,0,0,5,0,0,0,0,0,0,2 },
+	{ 4,0,0,5,0,0,0,0,0,4,6,0,6,2,0,0,0,0,0,2,2,0,2,2 },
+	{ 4,0,6,0,6,0,0,0,0,4,6,0,6,2,0,0,5,0,0,2,0,0,0,2 },
+	{ 4,0,0,0,0,0,0,0,0,4,6,0,6,2,0,0,0,0,0,2,0,0,0,2 },
+	{ 4,4,4,4,4,4,4,4,4,4,1,1,1,2,2,2,2,2,2,3,3,3,3,3 }
 };
 
 int main()
@@ -77,12 +79,12 @@ int main()
 	// Tell the window to use vsync and work on high DPI displays
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 	
-	InitWindow(screenWidth, screenHeigth, "Simple Raycaster");
+	InitWindow(screenWidth, screenHeight, "Simple Raycaster");
 
 	Player player = {
-		.position = (Vector2) { screenWidth/2, screenHeigth/2 },
+		.position = (Vector2) { screenWidth/2, screenHeight/2 },
 		.direction = (Vector2) { 0, -100 },
-		.rotationSpeed = 0.1f,
+		.rotationSpeed = 0.05f,
 		.speed = 150.f
 	};
 
@@ -90,11 +92,15 @@ int main()
 
 	const int pixelCellSize = screenWidth / mapWidth;
 
-	Vector2 screenCenter = { screenWidth/2, screenHeigth/2 };
+	Vector2 screenCenter = { screenWidth/2, screenHeight/2 };
 	bool draw2D = false;
 
-	Image screenImage = GenImageColor(screenWidth, screenHeigth, WHITE);
+	Image screenImage = GenImageColor(screenWidth, screenHeight, WHITE);
 	Texture screenTexture = LoadTextureFromImage(screenImage);
+
+	// 512 x 64
+	Image wallImages = LoadImage("resources/wall_textures.png");
+	Color* wallImagesPixels = LoadImageColors(wallImages);
 
 	while (!WindowShouldClose())
 	{
@@ -168,6 +174,9 @@ int main()
 
 			Vector2 playerMapPosition = { player.position.x / (float)pixelCellSize, player.position.y / (float)pixelCellSize };
 
+			double debugFloat;
+			double debugFloat2;
+
 			for (int i = 0; i < screenWidth; ++i)
 			{
 				// X-coordinate in camera space
@@ -214,7 +223,7 @@ int main()
 				SideHitType sideHitType;
 				bool hit = false;
 				int segmentCount = 0;
-				while (!hit) // && segmentCount <= mapWidth)
+				while (!hit && segmentCount <= mapWidth + 5)
 				{
 					// Vector2 pixelSideDist = { sideDistX * (float)pixelCellSize, sideDistY * (float)pixelCellSize };
 					// printf("sideDist: { %f, %f }\n", sideDistX, sideDistY);
@@ -243,51 +252,97 @@ int main()
 					segmentCount++;
 				}
 
+				double scaleFactor = (sideHitType == VERTICAL) ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
+				Vector2 rayHit = Vector2Scale(rayDir, scaleFactor);
+				perpWallDist = Vector2Length(rayHit) * cos(Vector2Angle(player.direction, rayDir));
+
+				double wallCoordX;
+				if (sideHitType == VERTICAL)
+				{
+					wallCoordX = playerMapPosition.y + perpWallDist * rayDir.y;
+				}
+				else
+				{
+					wallCoordX = playerMapPosition.x + perpWallDist * rayDir.x;
+				}
+				wallCoordX -= floor(wallCoordX);
+
+				int textureX = (int)(wallCoordX * (double)wallTextureSize);
+				if (sideHitType == VERTICAL && rayDir.x > 0 ||
+					sideHitType == HORIZONTAL && rayDir.y < 0)
+				{
+					textureX = wallTextureSize - textureX - 1;
+				}
+
+				if (i == screenWidth/2)
+				{
+					debugFloat = wallCoordX;
+					debugFloat2 = textureX;
+
+					DrawCircleV(Vector2Add(screenCenter, Vector2Scale(rayDir, Vector2Length(rayHit) * pixelCellSize)) , 3.f, RED);
+				}
+
+				Color wallColor = GetWallColor(worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x]);
+
+				if (sideHitType == HORIZONTAL)
+					wallColor = ColorBrightness(wallColor, -0.1f);
+
 				if (!draw2D)
 				{
-					if (sideHitType == VERTICAL)
-						perpWallDist = Vector2Length(Vector2Scale(rayDir, (sideDistX - deltaDistX))) * cosf(Vector2Angle(player.direction, rayDir));
-					else
-						perpWallDist = Vector2Length(Vector2Scale(rayDir, (sideDistY - deltaDistY))) * cosf(Vector2Angle(player.direction, rayDir));
+					int lineHeight = (int)(1 * screenHeight / perpWallDist);
 
-					int lineHeight = (int)(1 * screenHeigth / perpWallDist);
-
-					int drawStart = -lineHeight / 2 + screenHeigth / 2;
+					int drawStart = -lineHeight / 2 + screenHeight / 2;
 					if (drawStart < 0)
 						drawStart = 0;
 
-					int drawEnd = lineHeight / 2 + screenHeigth / 2;
-					if (drawEnd >= screenHeigth)
-						drawEnd = screenHeigth - 1;
+					int drawEnd = lineHeight / 2 + screenHeight / 2;
+					if (drawEnd >= screenHeight)
+						drawEnd = screenHeight - 1;
 
-					Color wallColor = GetWallColor(worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x]);
-
-					if (sideHitType == HORIZONTAL)
-						wallColor = ColorBrightness(wallColor, -0.1f);
+					int wallTextureIndex = -1;
+					if (rayCuadrantPosition.y >= 0 && rayCuadrantPosition.y < mapHeight &&
+						rayCuadrantPosition.x >= 0 && rayCuadrantPosition.x < mapWidth)
+					{
+						wallTextureIndex = worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x];
+					}
 
 					for (int posY = drawStart; posY < drawEnd; posY++)
 					{
-						SetScreenPixelColor(pixels, i, posY, wallColor);
+						int textureY = (float)(posY - drawStart) / (float)(drawEnd - drawStart) * wallTextureSize;
+
+						Color texturePixelColor;
+						if (wallTextureIndex > -1)
+						{
+							texturePixelColor = wallImagesPixels[wallTextureIndex * wallTextureSize + textureX + textureY * wallTextureSize * wallTextureCount];
+						}
+						else
+						{
+							texturePixelColor = MAGENTA;
+						}
+						SetScreenPixelColor(pixels, i, posY, texturePixelColor);
 					}
 				}
 			}
 
-			int x = screenWidth/2;
-			int y = screenHeigth/2;
-			pixels[x + y * screenWidth] = RED;
-
 			UpdateTexture(screenTexture, pixels);
-            UnloadImageColors(pixels);
-			DrawTexture(screenTexture, 0, 0, WHITE);
+			UnloadImageColors(pixels);
+
+			if (!draw2D)
+			{
+				DrawTexture(screenTexture, 0, 0, WHITE);
+			}
 
 			// Draw UI
-			DrawText(TextFormat("Player position: %.2f %.2f", player.position.x, player.position.y), 10, 10, 20, BLACK);
+			// DrawText(TextFormat("Player position: %.2f %.2f", player.position.x, player.position.y), 10, 10, 20, BLACK);
+			DrawText(TextFormat("PerpWallDist: %.2f - Player dir-ray angle: %.2f", debugFloat, debugFloat2), 10, 10, 20, BLACK);
 
 		EndDrawing();
 	}
 
 	UnloadTexture(screenTexture);
 	UnloadImage(screenImage);
+
+	UnloadImage(wallImages);
 
 	CloseWindow();
 	return 0;
