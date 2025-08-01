@@ -11,6 +11,7 @@ const int screenHeight = 600;
 
 typedef struct Player {
 	Vector2 position;
+	Vector2 velocity;
 	Vector2 direction;
 	float rotationSpeed;
 	float speed;
@@ -83,6 +84,7 @@ int main()
 
 	Player player = {
 		.position = (Vector2) { screenWidth/2, screenHeight/2 },
+		.velocity = (Vector2) { 0, 0 },
 		.direction = (Vector2) { 0, -100 },
 		.rotationSpeed = 0.05f,
 		.speed = 150.f
@@ -102,18 +104,48 @@ int main()
 	Image wallImages = LoadImage("resources/wall_textures.png");
 	Color* wallImagesPixels = LoadImageColors(wallImages);
 
+	double debugFloat = 0.0;
+	double debugFloat2 = 0.0;
+
 	while (!WindowShouldClose())
 	{
 		float deltaTime = GetFrameTime();
 		Vector2 normalizedDir = Vector2Normalize(player.direction);
 
+		// TODO: fix acceleration physics
+		float acceleration = 10.0f;
+		float maxVelocity = 2.0f;
+		float maxVelocitySqr = maxVelocity * maxVelocity;
+
+		bool isMoving = false;
+
 		if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))
 		{
-			player.position = Vector2Add(player.position, Vector2Scale(normalizedDir, player.speed * deltaTime));
+			if (Vector2LengthSqr(player.velocity) < maxVelocitySqr)
+			{
+				player.velocity = Vector2Add(player.velocity, Vector2Scale(normalizedDir, acceleration * deltaTime));
+			}
+			else
+			{
+				player.velocity = Vector2Add(player.velocity, Vector2Scale(normalizedDir, maxVelocity));
+			}
+
+			isMoving = true;
+			// player.position = Vector2Add(player.position, Vector2Scale(normalizedDir, player.speed * deltaTime));
 		}
 		if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))
 		{
-			player.position = Vector2Subtract(player.position, Vector2Scale(normalizedDir, player.speed * deltaTime));
+			if (Vector2LengthSqr(player.velocity) < maxVelocitySqr)
+			{
+				player.velocity = Vector2Subtract(player.velocity, Vector2Scale(normalizedDir, acceleration * deltaTime));
+			}
+			else
+			{
+				player.velocity = Vector2Subtract(player.velocity, Vector2Scale(normalizedDir, maxVelocity));
+			}
+
+			isMoving = true;
+			// player.position = Vector2Subtract(player.position, Vector2Scale(normalizedDir, player.speed * deltaTime));
 		}
 		if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
 		{
@@ -125,6 +157,21 @@ int main()
 			player.direction = Vector2Rotate(player.direction, -player.rotationSpeed);
 			plane = Vector2Rotate(plane, -player.rotationSpeed);
 		}
+
+		float velocityLength = Vector2Length(player.velocity);
+		if (!isMoving)
+		{
+			if (velocityLength < 0.1f || Vector2DotProduct(normalizedDir, player.velocity) < 0.0f)
+			{
+				player.velocity = (Vector2) { 0, 0 };
+			}
+			else
+			{
+				player.velocity = Vector2Subtract(player.velocity, Vector2Scale(normalizedDir, (acceleration/2) * deltaTime));
+			}
+		}
+
+		player.position = Vector2Add(player.position, player.velocity);
 
 		if (IsKeyPressed(KEY_M))
 		{
@@ -173,9 +220,6 @@ int main()
 			}
 
 			Vector2 playerMapPosition = { player.position.x / (float)pixelCellSize, player.position.y / (float)pixelCellSize };
-
-			double debugFloat;
-			double debugFloat2;
 
 			for (int i = 0; i < screenWidth; ++i)
 			{
@@ -276,8 +320,8 @@ int main()
 
 				if (i == screenWidth/2)
 				{
-					debugFloat = wallCoordX;
-					debugFloat2 = textureX;
+					// debugFloat = wallCoordX;
+					// debugFloat2 = textureX;
 
 					DrawCircleV(Vector2Add(screenCenter, Vector2Scale(rayDir, Vector2Length(rayHit) * pixelCellSize)) , 3.f, RED);
 				}
@@ -306,19 +350,47 @@ int main()
 						wallTextureIndex = worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x];
 					}
 
+/*
+						// How much to increase the texture coordinate per screen pixel
+						double step = 1.0 * texHeight / lineHeight;
+						// Starting texture coordinate
+						double texPos = (drawStart - h / 2 + lineHeight / 2) * step;
+						for(int y = drawStart; y<drawEnd; y++)
+						{
+							// Cast the texture coordinate to integer, and mask with (texHeight - 1) in case of overflow
+							int texY = (int)texPos & (texHeight - 1);
+							texPos += step;
+							Uint32 color = texture[texNum][texHeight * texY + texX];
+							//make color darker for y-sides: R, G and B byte each divided through two with a "shift" and an "and"
+							if(side == 1) color = (color >> 1) & 8355711;
+							buffer[y][x] = color;
+						}
+*/
+
+					// How much to increase the texture coordinate per screen pixel
+					double step = (double)wallTextureSize / lineHeight;
+					// Starting texture coordinate
+					double texPos = (drawStart - screenHeight / 2 + lineHeight / 2) * step;
+
 					for (int posY = drawStart; posY < drawEnd; posY++)
 					{
-						int textureY = (float)(posY - drawStart) / (float)(drawEnd - drawStart) * wallTextureSize;
+						// Cast the texture coordinate to integer, and mask with (texHeight - 1) in case of overflow
+						int textureY = (int)texPos & (wallTextureSize - 1);
+						texPos += step;
 
-						Color texturePixelColor;
+						Color texturePixelColor = MAGENTA;
 						if (wallTextureIndex > -1)
 						{
 							texturePixelColor = wallImagesPixels[wallTextureIndex * wallTextureSize + textureX + textureY * wallTextureSize * wallTextureCount];
 						}
-						else
+
+						if (sideHitType == VERTICAL)
 						{
-							texturePixelColor = MAGENTA;
+							texturePixelColor.r = (unsigned char)((float)texturePixelColor.r * 0.5);
+							texturePixelColor.g = (unsigned char)((float)texturePixelColor.g * 0.5);
+							texturePixelColor.b = (unsigned char)((float)texturePixelColor.b * 0.5);
 						}
+
 						SetScreenPixelColor(pixels, i, posY, texturePixelColor);
 					}
 				}
