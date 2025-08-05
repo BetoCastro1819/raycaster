@@ -14,7 +14,10 @@ typedef struct Player {
 	Vector2 velocity;
 	Vector2 direction;
 	float rotationSpeed;
+	float acceleration;
 	float speed;
+	float maxVelocity;
+	float drag;
 } Player;
 
 typedef enum SideHitType {
@@ -87,7 +90,10 @@ int main()
 		.velocity = (Vector2) { 0, 0 },
 		.direction = (Vector2) { 0, -100 },
 		.rotationSpeed = 0.05f,
-		.speed = 150.f
+		.speed = 150.f,
+		.acceleration = 20.0f,
+		.maxVelocity = 2.0f,
+		.drag = 15.0f
 	};
 
 	Vector2 plane = { 80, 0 };
@@ -100,7 +106,7 @@ int main()
 	Image screenImage = GenImageColor(screenWidth, screenHeight, WHITE);
 	Texture screenTexture = LoadTextureFromImage(screenImage);
 
-	// 512 x 64
+	// Texture size is: 512 x 64
 	Image wallImages = LoadImage("resources/wall_textures.png");
 	Color* wallImagesPixels = LoadImageColors(wallImages);
 
@@ -112,40 +118,35 @@ int main()
 		float deltaTime = GetFrameTime();
 		Vector2 normalizedDir = Vector2Normalize(player.direction);
 
-		// TODO: fix acceleration physics
-		float acceleration = 10.0f;
-		float maxVelocity = 2.0f;
-		float maxVelocitySqr = maxVelocity * maxVelocity;
+		float playerMaxVelocitySqr = player.maxVelocity * player.maxVelocity;
 
 		bool isMoving = false;
 
 		if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))
 		{
-			if (Vector2LengthSqr(player.velocity) < maxVelocitySqr)
+			isMoving = true;
+
+			if (Vector2LengthSqr(player.velocity) < playerMaxVelocitySqr)
 			{
-				player.velocity = Vector2Add(player.velocity, Vector2Scale(normalizedDir, acceleration * deltaTime));
+				player.velocity = Vector2Add(player.velocity, Vector2Scale(normalizedDir, player.acceleration * deltaTime));
 			}
 			else
 			{
-				player.velocity = Vector2Add(player.velocity, Vector2Scale(normalizedDir, maxVelocity));
+				player.velocity = Vector2Scale(normalizedDir, player.maxVelocity);
 			}
-
-			isMoving = true;
-			// player.position = Vector2Add(player.position, Vector2Scale(normalizedDir, player.speed * deltaTime));
 		}
 		if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))
 		{
-			if (Vector2LengthSqr(player.velocity) < maxVelocitySqr)
+			isMoving = true;
+
+			if (Vector2LengthSqr(player.velocity) < playerMaxVelocitySqr)
 			{
-				player.velocity = Vector2Subtract(player.velocity, Vector2Scale(normalizedDir, acceleration * deltaTime));
+				player.velocity = Vector2Subtract(player.velocity, Vector2Scale(normalizedDir, player.acceleration * deltaTime));
 			}
 			else
 			{
-				player.velocity = Vector2Subtract(player.velocity, Vector2Scale(normalizedDir, maxVelocity));
+				player.velocity = Vector2Scale(normalizedDir, -player.maxVelocity);
 			}
-
-			isMoving = true;
-			// player.position = Vector2Subtract(player.position, Vector2Scale(normalizedDir, player.speed * deltaTime));
 		}
 		if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
 		{
@@ -167,7 +168,7 @@ int main()
 			}
 			else
 			{
-				player.velocity = Vector2Subtract(player.velocity, Vector2Scale(normalizedDir, (acceleration/2) * deltaTime));
+				player.velocity = Vector2Subtract(player.velocity, Vector2Scale(normalizedDir, player.drag * deltaTime));
 			}
 		}
 
