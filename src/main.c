@@ -13,6 +13,7 @@ typedef struct Player {
 	Vector2 position;
 	Vector2 velocity;
 	Vector2 direction;
+	float radius;
 	float rotationSpeed;
 	float acceleration;
 	float speed;
@@ -89,6 +90,7 @@ int main()
 		.position = (Vector2) { screenWidth/2, screenHeight/2 },
 		.velocity = (Vector2) { 0, 0 },
 		.direction = (Vector2) { 0, -100 },
+		.radius = 0.2f,
 		.rotationSpeed = 0.05f,
 		.speed = 150.f,
 		.acceleration = 20.0f,
@@ -104,11 +106,12 @@ int main()
 	bool draw2D = false;
 
 	Image screenImage = GenImageColor(screenWidth, screenHeight, WHITE);
-	Texture screenTexture = LoadTextureFromImage(screenImage);
+	Texture2D screenTexture = LoadTextureFromImage(screenImage);
 
 	// Texture size is: 512 x 64
 	Image wallImages = LoadImage("resources/wall_textures.png");
 	Color* wallImagesPixels = LoadImageColors(wallImages);
+	Texture2D wallTextures = LoadTextureFromImage(wallImages);
 
 	double debugFloat = 0.0;
 	double debugFloat2 = 0.0;
@@ -121,6 +124,8 @@ int main()
 		float playerMaxVelocitySqr = player.maxVelocity * player.maxVelocity;
 
 		bool isMoving = false;
+
+		Vector2 playerMapPosition = { player.position.x / (float)pixelCellSize, player.position.y / (float)pixelCellSize };
 
 		if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))
 		{
@@ -183,8 +188,6 @@ int main()
 
 			ClearBackground(WHITE);
 
-			// DrawRectangle(screenCenter.x - 10, screenCenter.y - 10, 20, 20, RED);
-
 			Color* pixels = LoadImageColors(screenImage);
 
 			if (draw2D)
@@ -194,23 +197,24 @@ int main()
 				{
 					for (int x = 0; x < mapWidth; ++x)
 					{
-						// DrawLineV((Vector2){ relativePosX, relativePosY }, (Vector2){ relativePosX, screenHeigth - relativePosY }, GRAY);
+						// TODO: Draw adjacent cells to check for collision
 
 						if (worldMap[y][x] != 0)
 						{
-							DrawRectangle(
-								screenCenter.x + x * pixelCellSize - player.position.x,
-								screenCenter.y + y * pixelCellSize - player.position.y,
-								pixelCellSize, pixelCellSize, GetWallColor(worldMap[y][x]));
+							Rectangle textureSourceRec = { .height = wallTextureSize, .width = wallTextureSize, .x = 0, .y = 0 };
+							textureSourceRec.x = (worldMap[y][x] - 1) * wallTextureSize;
+							Rectangle textureDestRec = { .height = pixelCellSize, .width = pixelCellSize, .x = 0, .y = 0 };
+							textureDestRec.x = screenCenter.x + x * pixelCellSize - player.position.x;
+							textureDestRec.y = screenCenter.y + y * pixelCellSize - player.position.y;
+							DrawTexturePro(wallTextures, textureSourceRec, textureDestRec, (Vector2){ 0, 0 }, 0.0, WHITE);
 						}
 					}
-				
-					// DrawLineV((Vector2){ player.position.x - screenWidth, player.position.y + y * pixelCellSize }, (Vector2){ player.position.x - screenWidth, player.position.y + y * pixelCellSize }, GRAY);
 				}
 
 				// Draw Player
-				DrawCircleV(screenCenter, 10.0f, GREEN);
+				DrawCircleV(screenCenter, 5.0f, GREEN);
 				DrawLineV(screenCenter, Vector2Add(screenCenter, player.direction), BLACK);
+				DrawCircleLinesV(screenCenter, (player.radius * pixelCellSize), RED);
 				
 				// Draw view plane
 				Vector2 planePos = Vector2Add(screenCenter, player.direction);
@@ -220,7 +224,6 @@ int main()
 				DrawLineV(planePos, planeRightEdge, BLUE);
 			}
 
-			Vector2 playerMapPosition = { player.position.x / (float)pixelCellSize, player.position.y / (float)pixelCellSize };
 
 			for (int i = 0; i < screenWidth; ++i)
 			{
@@ -304,11 +307,11 @@ int main()
 				double wallCoordX;
 				if (sideHitType == VERTICAL)
 				{
-					wallCoordX = playerMapPosition.y + perpWallDist * rayDir.y;
+					wallCoordX = playerMapPosition.y + rayHit.y;
 				}
 				else
 				{
-					wallCoordX = playerMapPosition.x + perpWallDist * rayDir.x;
+					wallCoordX = playerMapPosition.x + rayHit.x;
 				}
 				wallCoordX -= floor(wallCoordX);
 
@@ -327,11 +330,6 @@ int main()
 					DrawCircleV(Vector2Add(screenCenter, Vector2Scale(rayDir, Vector2Length(rayHit) * pixelCellSize)) , 3.f, RED);
 				}
 
-				Color wallColor = GetWallColor(worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x]);
-
-				if (sideHitType == HORIZONTAL)
-					wallColor = ColorBrightness(wallColor, -0.1f);
-
 				if (!draw2D)
 				{
 					int lineHeight = (int)(1 * screenHeight / perpWallDist);
@@ -348,25 +346,8 @@ int main()
 					if (rayCuadrantPosition.y >= 0 && rayCuadrantPosition.y < mapHeight &&
 						rayCuadrantPosition.x >= 0 && rayCuadrantPosition.x < mapWidth)
 					{
-						wallTextureIndex = worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x];
+						wallTextureIndex = worldMap[(int)rayCuadrantPosition.y][(int)rayCuadrantPosition.x] - 1;
 					}
-
-/*
-						// How much to increase the texture coordinate per screen pixel
-						double step = 1.0 * texHeight / lineHeight;
-						// Starting texture coordinate
-						double texPos = (drawStart - h / 2 + lineHeight / 2) * step;
-						for(int y = drawStart; y<drawEnd; y++)
-						{
-							// Cast the texture coordinate to integer, and mask with (texHeight - 1) in case of overflow
-							int texY = (int)texPos & (texHeight - 1);
-							texPos += step;
-							Uint32 color = texture[texNum][texHeight * texY + texX];
-							//make color darker for y-sides: R, G and B byte each divided through two with a "shift" and an "and"
-							if(side == 1) color = (color >> 1) & 8355711;
-							buffer[y][x] = color;
-						}
-*/
 
 					// How much to increase the texture coordinate per screen pixel
 					double step = (double)wallTextureSize / lineHeight;
