@@ -2,12 +2,13 @@
 #include "raylib.h"
 #include "raymath.h"
 
-const int screenWidth = 900;
-const int screenHeight = 600;
 #define mapWidth 24
 #define mapHeight 24
 #define wallTextureCount 8
 #define wallTextureSize 64
+#define	screenWidth 900
+#define	screenHeight 600
+#define	pixelCellSize (screenWidth / mapWidth)
 
 int worldMap[mapWidth][mapHeight] =
 {
@@ -44,7 +45,6 @@ typedef struct Player {
 	float radius;
 	float rotationSpeed;
 	float acceleration;
-	float speed;
 	float maxVelocity;
 	float drag;
 } Player;
@@ -98,6 +98,33 @@ bool IsWallV(Vector2 pos)
 	return IsWall(pos.x, pos.y) != 0;
 }
 
+/*
+CollisionType ResolvePlayerWallCollision(int wallX, int wallY, Player* player, Vector2* outResolvedPlayerPos)
+{
+	CollisionType collisionType = NONE;
+
+	if (IsWall(wallX, wallY))
+	{
+		Vector2 wallCell = (Vector2) { wallX, wallY };
+
+		if (playerMapPosition.x - player->radius < leftCell.x + 1)
+		{
+			collisionType = LEFT;
+			playerMapPosition.x = playerMapPosition.x + ((leftCell.x + 1.f) - (playerMapPosition.x - player.radius));
+		}
+
+		Vector2 rightCell = (Vector2) { (int)playerMapPosition.x + 1, (int)playerMapPosition.y };
+		if (IsWallV(rightCell) && playerMapPosition.x + player.radius > rightCell.x)
+		{
+			collisionType = RIGHT;
+			playerMapPosition.x = playerMapPosition.x - ((playerMapPosition.x + player.radius) - (rightCell.x));
+		}
+	}
+
+	return collisionType
+}
+*/
+
 int main()
 {
 	// Tell the window to use vsync and work on high DPI displays
@@ -106,8 +133,6 @@ int main()
 	InitWindow(screenWidth, screenHeight, "Simple Raycaster");
 
 	Vector2 plane = { 80, 0 };
-
-	const int pixelCellSize = screenWidth / mapWidth;
 
 	Vector2 screenCenter = { screenWidth/2, screenHeight/2 };
 	bool draw2D = false;
@@ -121,15 +146,14 @@ int main()
 	Texture2D wallTextures = LoadTextureFromImage(wallImages);
 
 	Player player = {
-		.position = (Vector2) { (screenWidth/2) + (pixelCellSize/2), (screenHeight/2) + (pixelCellSize/2) },
+		.position = (Vector2) { 12, 9 },
 		.velocity = (Vector2) { 0, 0 },
 		.direction = (Vector2) { 0, -100 },
 		.radius = 0.3f,
 		.rotationSpeed = 0.05f,
-		.speed = 150.f,
-		.acceleration = 20.0f,
-		.maxVelocity = 2.0f,
-		.drag = 15.0f
+		.acceleration = 1.0f,
+		.maxVelocity = 0.08f,
+		.drag = 0.9f
 	};
 
 	double debugFloat = 0.0;
@@ -145,8 +169,6 @@ int main()
 		float playerMaxVelocitySqr = player.maxVelocity * player.maxVelocity;
 
 		bool isMoving = false;
-
-		Vector2 playerMapPosition = { player.position.x / (float)pixelCellSize, player.position.y / (float)pixelCellSize };
 
 		if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))
 		{
@@ -188,7 +210,7 @@ int main()
 		float velocityLength = Vector2Length(player.velocity);
 		if (!isMoving)
 		{
-			if (velocityLength < 0.1f || Vector2DotProduct(normalizedDir, player.velocity) < 0.0f)
+			if (velocityLength < 0.01f || Vector2DotProduct(normalizedDir, player.velocity) < 0.0f)
 			{
 				player.velocity = (Vector2) { 0, 0 };
 			}
@@ -206,40 +228,32 @@ int main()
 
 		if (collisionEnabled)
 		{
-			Vector2 leftCell = (Vector2) { (int)playerMapPosition.x - 1, (int)playerMapPosition.y };
-			if (IsWallV(leftCell) && playerMapPosition.x - player.radius < leftCell.x + 1)
+			Vector2 leftCell = (Vector2) { (int)player.position.x - 1, (int)player.position.y };
+			if (IsWallV(leftCell) && player.position.x - player.radius < leftCell.x + 1)
 			{
 				collisionType = LEFT;
-				playerMapPosition.x = playerMapPosition.x + ((leftCell.x + 1.f) - (playerMapPosition.x - player.radius));
+				player.position.x = player.position.x + ((leftCell.x + 1.f) - (player.position.x - player.radius));
 			}
 
-			Vector2 rightCell = (Vector2) { (int)playerMapPosition.x + 1, (int)playerMapPosition.y };
-			if (IsWallV(rightCell) && playerMapPosition.x + player.radius > rightCell.x)
+			Vector2 rightCell = (Vector2) { (int)player.position.x + 1, (int)player.position.y };
+			if (IsWallV(rightCell) && player.position.x + player.radius > rightCell.x)
 			{
 				collisionType = RIGHT;
-				playerMapPosition.x = playerMapPosition.x - ((playerMapPosition.x + player.radius) - (rightCell.x));
+				player.position.x = player.position.x - ((player.position.x + player.radius) - (rightCell.x));
 			}
 
-			Vector2 upCell = (Vector2) { (int)playerMapPosition.x, (int)playerMapPosition.y - 1 };
-			if (IsWallV(upCell) && playerMapPosition.y - player.radius < upCell.y + 1.f)
+			Vector2 upCell = (Vector2) { (int)player.position.x, (int)player.position.y - 1 };
+			if (IsWallV(upCell) && player.position.y - player.radius < upCell.y + 1.f)
 			{
 				collisionType = UP;
-				playerMapPosition.y = playerMapPosition.y + ((upCell.y + 1.f) - (playerMapPosition.y - player.radius));
+				player.position.y = player.position.y + ((upCell.y + 1.f) - (player.position.y - player.radius));
 			}
 
-			Vector2 downCell = (Vector2) { (int)playerMapPosition.x, (int)playerMapPosition.y + 1 };
-			if (IsWallV(downCell) && playerMapPosition.y + player.radius > downCell.y)
+			Vector2 downCell = (Vector2) { (int)player.position.x, (int)player.position.y + 1 };
+			if (IsWallV(downCell) && player.position.y + player.radius > downCell.y)
 			{
 				collisionType = DOWN;
-				playerMapPosition.y = playerMapPosition.y - ((playerMapPosition.y + player.radius) - (downCell.y));
-			}
-
-			if (collisionType != NONE)
-			{
-				// TODO: fix bug where the player gets stuck on some specific walls
-				
-				// TODO: Convert "player.position" to world units instead of pixel units to avoid doing these conversions all over the place
-				player.position = (Vector2){ playerMapPosition.x * (float)pixelCellSize, playerMapPosition.y * (float)pixelCellSize };
+				player.position.y = player.position.y - ((player.position.y + player.radius) - (downCell.y));
 			}
 		}
 
@@ -271,8 +285,8 @@ int main()
 							Rectangle textureSourceRec = { .height = wallTextureSize, .width = wallTextureSize, .x = 0, .y = 0 };
 							textureSourceRec.x = (worldMap[y][x] - 1) * wallTextureSize;
 							Rectangle textureDestRec = { .height = pixelCellSize, .width = pixelCellSize, .x = 0, .y = 0 };
-							textureDestRec.x = screenCenter.x + x * pixelCellSize - player.position.x;
-							textureDestRec.y = screenCenter.y + y * pixelCellSize - player.position.y;
+							textureDestRec.x = screenCenter.x + x * pixelCellSize - player.position.x * pixelCellSize;
+							textureDestRec.y = screenCenter.y + y * pixelCellSize - player.position.y * pixelCellSize;
 							DrawTexturePro(wallTextures, textureSourceRec, textureDestRec, (Vector2){ 0, 0 }, 0.0, WHITE);
 						}
 					}
@@ -295,27 +309,27 @@ int main()
 				Vector2 drawCellPosition;
 
 				// Left
-				adjacentCell = (Vector2) { (int)playerMapPosition.x - 1, (int)playerMapPosition.y };
-				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x;
-				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y;
+				adjacentCell = (Vector2) { (int)player.position.x - 1, (int)player.position.y };
+				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x * pixelCellSize;
+				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y * pixelCellSize;
 				DrawRectangleV(drawCellPosition, (Vector2) { pixelCellSize, pixelCellSize }, ColorAlpha(collisionType == LEFT ? RED : BLACK, 0.5f));
 
 				// Down
-				adjacentCell = (Vector2) { (int)playerMapPosition.x, (int)playerMapPosition.y + 1 };
-				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x;
-				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y;
+				adjacentCell = (Vector2) { (int)player.position.x, (int)player.position.y + 1 };
+				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x * pixelCellSize;
+				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y * pixelCellSize;
 				DrawRectangleV(drawCellPosition, (Vector2) { pixelCellSize, pixelCellSize }, ColorAlpha(collisionType == DOWN ? RED : BLACK, 0.5f));
 
 				// Right
-				adjacentCell = (Vector2) { (int)playerMapPosition.x + 1, (int)playerMapPosition.y };
-				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x;
-				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y;
+				adjacentCell = (Vector2) { (int)player.position.x + 1, (int)player.position.y };
+				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x * pixelCellSize;
+				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y * pixelCellSize;
 				DrawRectangleV(drawCellPosition, (Vector2) { pixelCellSize, pixelCellSize }, ColorAlpha(collisionType == RIGHT ? RED : BLACK, 0.5f));
 
 				// Up
-				adjacentCell = (Vector2) { (int)playerMapPosition.x, (int)playerMapPosition.y - 1 };
-				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x;
-				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y;
+				adjacentCell = (Vector2) { (int)player.position.x, (int)player.position.y - 1 };
+				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x * pixelCellSize;
+				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y * pixelCellSize;
 				DrawRectangleV(drawCellPosition, (Vector2) { pixelCellSize, pixelCellSize }, ColorAlpha(collisionType == UP ? RED : BLACK, 0.5f));
 			}
 
@@ -331,7 +345,7 @@ int main()
 				double deltaDistX = AlmostZero(rayDir.x) ? 1e30 : fabs(1 / rayDir.x);
 				double deltaDistY = AlmostZero(rayDir.y) ? 1e30 : fabs(1 / rayDir.y);
 
-				Vector2 rayCuadrantPosition = { (int)playerMapPosition.x, (int)playerMapPosition.y };
+				Vector2 rayCuadrantPosition = { (int)player.position.x, (int)player.position.y };
 
 				// Direction to step in (can be +1 or -1)
 				Vector2 stepDir;
@@ -343,23 +357,23 @@ int main()
 				if (rayDir.x < 0.f)
 				{
 					stepDir.x = -1;
-					sideDistX = (playerMapPosition.x - rayCuadrantPosition.x) * deltaDistX;
+					sideDistX = (player.position.x - rayCuadrantPosition.x) * deltaDistX;
 				}
 				else
 				{
 					stepDir.x = 1;
-					sideDistX = (rayCuadrantPosition.x + 1.0f - playerMapPosition.x) * deltaDistX;
+					sideDistX = (rayCuadrantPosition.x + 1.0f - player.position.x) * deltaDistX;
 				}
 
 				if (rayDir.y < 0.f)
 				{
 					stepDir.y = -1;
-					sideDistY = (playerMapPosition.y - rayCuadrantPosition.y) * deltaDistY;
+					sideDistY = (player.position.y - rayCuadrantPosition.y) * deltaDistY;
 				}
 				else
 				{
 					stepDir.y = 1;
-					sideDistY = (rayCuadrantPosition.y + 1.0f - playerMapPosition.y) * deltaDistY;
+					sideDistY = (rayCuadrantPosition.y + 1.0f - player.position.y) * deltaDistY;
 				}
 
 				double perpWallDist;
@@ -402,11 +416,11 @@ int main()
 				double wallCoordX;
 				if (sideHitType == VERTICAL)
 				{
-					wallCoordX = playerMapPosition.y + rayHit.y;
+					wallCoordX = player.position.y + rayHit.y;
 				}
 				else
 				{
-					wallCoordX = playerMapPosition.x + rayHit.x;
+					wallCoordX = player.position.x + rayHit.x;
 				}
 				wallCoordX -= floor(wallCoordX);
 
