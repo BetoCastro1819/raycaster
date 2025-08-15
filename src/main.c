@@ -9,48 +9,6 @@ const int screenHeight = 600;
 #define wallTextureCount 8
 #define wallTextureSize 64
 
-typedef struct Player {
-	Vector2 position;
-	Vector2 velocity;
-	Vector2 direction;
-	float radius;
-	float rotationSpeed;
-	float acceleration;
-	float speed;
-	float maxVelocity;
-	float drag;
-} Player;
-
-typedef enum SideHitType {
-	VERTICAL,
-	HORIZONTAL
-} SideHitType;
-
-bool AlmostZero(float val)
-{
-	return (val > 0.0f && val < 0.000001f);
-}
-
-void SetScreenPixelColor(Color* pixelsArray, int posX, int posY, Color pixelColor)
-{
-	pixelsArray[posX + posY * screenWidth] = pixelColor;
-}
-
-Color GetWallColor(int wallType)
-{
-	Color wallColor;
-	switch (wallType)
-	{
-	case 1: wallColor = RED; break;
-	case 2: wallColor = GREEN; break;
-	case 3: wallColor = BLUE; break;
-	case 4: wallColor = GRAY; break;
-	default: wallColor = MAGENTA; break;
-	}
-
-	return wallColor;
-}
-
 int worldMap[mapWidth][mapHeight] =
 {
 	{ 4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,7,7,7,7,7,7,7,7 },
@@ -79,24 +37,73 @@ int worldMap[mapWidth][mapHeight] =
 	{ 4,4,4,4,4,4,4,4,4,4,1,1,1,2,2,2,2,2,2,3,3,3,3,3 }
 };
 
+typedef struct Player {
+	Vector2 position;
+	Vector2 velocity;
+	Vector2 direction;
+	float radius;
+	float rotationSpeed;
+	float acceleration;
+	float speed;
+	float maxVelocity;
+	float drag;
+} Player;
+
+typedef enum SideHitType {
+	VERTICAL,
+	HORIZONTAL
+} SideHitType;
+
+typedef enum CollisionType {
+	UP,
+	RIGHT,
+	DOWN,
+	LEFT,
+	NONE
+} CollisionType;
+
+
+bool AlmostZero(float val)
+{
+	return (val > 0.0f && val < 0.000001f);
+}
+
+void SetScreenPixelColor(Color* pixelsArray, int posX, int posY, Color pixelColor)
+{
+	pixelsArray[posX + posY * screenWidth] = pixelColor;
+}
+
+Color GetWallColor(int wallType)
+{
+	Color wallColor;
+	switch (wallType)
+	{
+	case 1: wallColor = RED; break;
+	case 2: wallColor = GREEN; break;
+	case 3: wallColor = BLUE; break;
+	case 4: wallColor = GRAY; break;
+	default: wallColor = MAGENTA; break;
+	}
+
+	return wallColor;
+}
+
+bool IsWall(int posX, int posY)
+{
+	return worldMap[posY][posX] != 0;
+}
+
+bool IsWallV(Vector2 pos)
+{
+	return IsWall(pos.x, pos.y) != 0;
+}
+
 int main()
 {
 	// Tell the window to use vsync and work on high DPI displays
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 	
 	InitWindow(screenWidth, screenHeight, "Simple Raycaster");
-
-	Player player = {
-		.position = (Vector2) { screenWidth/2, screenHeight/2 },
-		.velocity = (Vector2) { 0, 0 },
-		.direction = (Vector2) { 0, -100 },
-		.radius = 0.2f,
-		.rotationSpeed = 0.05f,
-		.speed = 150.f,
-		.acceleration = 20.0f,
-		.maxVelocity = 2.0f,
-		.drag = 15.0f
-	};
 
 	Vector2 plane = { 80, 0 };
 
@@ -113,8 +120,22 @@ int main()
 	Color* wallImagesPixels = LoadImageColors(wallImages);
 	Texture2D wallTextures = LoadTextureFromImage(wallImages);
 
+	Player player = {
+		.position = (Vector2) { (screenWidth/2) + (pixelCellSize/2), (screenHeight/2) + (pixelCellSize/2) },
+		.velocity = (Vector2) { 0, 0 },
+		.direction = (Vector2) { 0, -100 },
+		.radius = 0.3f,
+		.rotationSpeed = 0.05f,
+		.speed = 150.f,
+		.acceleration = 20.0f,
+		.maxVelocity = 2.0f,
+		.drag = 15.0f
+	};
+
 	double debugFloat = 0.0;
 	double debugFloat2 = 0.0;
+
+	bool collisionEnabled = true;
 
 	while (!WindowShouldClose())
 	{
@@ -179,9 +200,57 @@ int main()
 
 		player.position = Vector2Add(player.position, player.velocity);
 
+
+		// Collision Handling
+		CollisionType collisionType = NONE;
+
+		if (collisionEnabled)
+		{
+			Vector2 leftCell = (Vector2) { (int)playerMapPosition.x - 1, (int)playerMapPosition.y };
+			if (IsWallV(leftCell) && playerMapPosition.x - player.radius < leftCell.x + 1)
+			{
+				collisionType = LEFT;
+				playerMapPosition.x = playerMapPosition.x + ((leftCell.x + 1.f) - (playerMapPosition.x - player.radius));
+			}
+
+			Vector2 rightCell = (Vector2) { (int)playerMapPosition.x + 1, (int)playerMapPosition.y };
+			if (IsWallV(rightCell) && playerMapPosition.x + player.radius > rightCell.x)
+			{
+				collisionType = RIGHT;
+				playerMapPosition.x = playerMapPosition.x - ((playerMapPosition.x + player.radius) - (rightCell.x));
+			}
+
+			Vector2 upCell = (Vector2) { (int)playerMapPosition.x, (int)playerMapPosition.y - 1 };
+			if (IsWallV(upCell) && playerMapPosition.y - player.radius < upCell.y + 1.f)
+			{
+				collisionType = UP;
+				playerMapPosition.y = playerMapPosition.y + ((upCell.y + 1.f) - (playerMapPosition.y - player.radius));
+			}
+
+			Vector2 downCell = (Vector2) { (int)playerMapPosition.x, (int)playerMapPosition.y + 1 };
+			if (IsWallV(downCell) && playerMapPosition.y + player.radius > downCell.y)
+			{
+				collisionType = DOWN;
+				playerMapPosition.y = playerMapPosition.y - ((playerMapPosition.y + player.radius) - (downCell.y));
+			}
+
+			if (collisionType != NONE)
+			{
+				// TODO: fix bug where the player gets stuck on some specific walls
+				
+				// TODO: Convert "player.position" to world units instead of pixel units to avoid doing these conversions all over the place
+				player.position = (Vector2){ playerMapPosition.x * (float)pixelCellSize, playerMapPosition.y * (float)pixelCellSize };
+			}
+		}
+
 		if (IsKeyPressed(KEY_M))
 		{
 			draw2D = !draw2D;
+		}
+
+		if (IsKeyPressed(KEY_C))
+		{
+			collisionEnabled = !collisionEnabled;
 		}
 
 		BeginDrawing();
@@ -197,8 +266,6 @@ int main()
 				{
 					for (int x = 0; x < mapWidth; ++x)
 					{
-						// TODO: Draw adjacent cells to check for collision
-
 						if (worldMap[y][x] != 0)
 						{
 							Rectangle textureSourceRec = { .height = wallTextureSize, .width = wallTextureSize, .x = 0, .y = 0 };
@@ -222,6 +289,34 @@ int main()
 				DrawLineV(planePos, planeLeftEdge, BLUE);
 				Vector2 planeRightEdge = Vector2Add(planePos, plane);
 				DrawLineV(planePos, planeRightEdge, BLUE);
+
+				// Collision Debug
+				Vector2 adjacentCell;
+				Vector2 drawCellPosition;
+
+				// Left
+				adjacentCell = (Vector2) { (int)playerMapPosition.x - 1, (int)playerMapPosition.y };
+				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x;
+				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y;
+				DrawRectangleV(drawCellPosition, (Vector2) { pixelCellSize, pixelCellSize }, ColorAlpha(collisionType == LEFT ? RED : BLACK, 0.5f));
+
+				// Down
+				adjacentCell = (Vector2) { (int)playerMapPosition.x, (int)playerMapPosition.y + 1 };
+				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x;
+				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y;
+				DrawRectangleV(drawCellPosition, (Vector2) { pixelCellSize, pixelCellSize }, ColorAlpha(collisionType == DOWN ? RED : BLACK, 0.5f));
+
+				// Right
+				adjacentCell = (Vector2) { (int)playerMapPosition.x + 1, (int)playerMapPosition.y };
+				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x;
+				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y;
+				DrawRectangleV(drawCellPosition, (Vector2) { pixelCellSize, pixelCellSize }, ColorAlpha(collisionType == RIGHT ? RED : BLACK, 0.5f));
+
+				// Up
+				adjacentCell = (Vector2) { (int)playerMapPosition.x, (int)playerMapPosition.y - 1 };
+				drawCellPosition.x = screenCenter.x + adjacentCell.x * pixelCellSize - player.position.x;
+				drawCellPosition.y = screenCenter.y + adjacentCell.y * pixelCellSize - player.position.y;
+				DrawRectangleV(drawCellPosition, (Vector2) { pixelCellSize, pixelCellSize }, ColorAlpha(collisionType == UP ? RED : BLACK, 0.5f));
 			}
 
 
@@ -388,7 +483,7 @@ int main()
 
 			// Draw UI
 			// DrawText(TextFormat("Player position: %.2f %.2f", player.position.x, player.position.y), 10, 10, 20, BLACK);
-			DrawText(TextFormat("PerpWallDist: %.2f - Player dir-ray angle: %.2f", debugFloat, debugFloat2), 10, 10, 20, BLACK);
+			DrawText(TextFormat("Player bound check: %.2f - Left adjacent cell: %.2f", debugFloat, debugFloat2), 10, 10, 20, BLACK);
 
 		EndDrawing();
 	}
