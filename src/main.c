@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdbool.h>
 #include "raylib.h"
 #include "raymath.h"
@@ -98,32 +99,45 @@ bool IsWallV(Vector2 pos)
 	return IsWall(pos.x, pos.y) != 0;
 }
 
-/*
-CollisionType ResolvePlayerWallCollision(int wallX, int wallY, Player* player, Vector2* outResolvedPlayerPos)
+const char* GetCollisionTypeString(CollisionType collisionType)
 {
-	CollisionType collisionType = NONE;
-
-	if (IsWall(wallX, wallY))
+	switch (collisionType)
 	{
-		Vector2 wallCell = (Vector2) { wallX, wallY };
+	case UP: return "UP"; break;
+	case DOWN: return "DOWN"; break;
+	case LEFT: return "LEFT"; break;
+	case RIGHT: return "RIGHT"; break;
+	default: return "No idea"; break;
+	}
+}
 
-		if (playerMapPosition.x - player->radius < leftCell.x + 1)
-		{
-			collisionType = LEFT;
-			playerMapPosition.x = playerMapPosition.x + ((leftCell.x + 1.f) - (playerMapPosition.x - player.radius));
-		}
+void ResolvePlayerWallCollision(const Player* player, Vector2 wallPos, Vector2* outNewPosition, CollisionType* outCollisionType)
+{
+	if (IsWallV(wallPos))
+	{
+		bool isHorizontal = (int)wallPos.x != (int)player->position.x;
+		float playerPos =  isHorizontal ? player->position.x : player->position.y;
+		float wallSidePos = isHorizontal ? wallPos.x : wallPos.y;
 
-		Vector2 rightCell = (Vector2) { (int)playerMapPosition.x + 1, (int)playerMapPosition.y };
-		if (IsWallV(rightCell) && playerMapPosition.x + player.radius > rightCell.x)
+		bool isLeftOrUp = (wallSidePos < playerPos);
+		float sideAdjustedWallPos = isLeftOrUp ? (wallSidePos + 1.f) : wallSidePos;
+		float dir = isLeftOrUp ? -1.f : 1.f;
+		float penetration = sideAdjustedWallPos - (playerPos + (player->radius * dir));
+
+		float* resolvedPlayerPos = isHorizontal ? &outNewPosition->x : &outNewPosition->y;
+
+		if ((isLeftOrUp && playerPos - player->radius < wallSidePos + 1.f)
+			||
+			(!isLeftOrUp && playerPos + player->radius > wallSidePos))
 		{
-			collisionType = RIGHT;
-			playerMapPosition.x = playerMapPosition.x - ((playerMapPosition.x + player.radius) - (rightCell.x));
+			*outCollisionType = (isHorizontal) ?
+								(isLeftOrUp ? LEFT : RIGHT) : 
+								(isLeftOrUp ? UP : DOWN);
+
+			*resolvedPlayerPos = playerPos + penetration;
 		}
 	}
-
-	return collisionType
 }
-*/
 
 int main()
 {
@@ -222,39 +236,18 @@ int main()
 
 		player.position = Vector2Add(player.position, player.velocity);
 
-
 		// Collision Handling
 		CollisionType collisionType = NONE;
-
 		if (collisionEnabled)
 		{
-			Vector2 leftCell = (Vector2) { (int)player.position.x - 1, (int)player.position.y };
-			if (IsWallV(leftCell) && player.position.x - player.radius < leftCell.x + 1)
-			{
-				collisionType = LEFT;
-				player.position.x = player.position.x + ((leftCell.x + 1.f) - (player.position.x - player.radius));
-			}
+			Vector2 newPlayerPos = player.position;
 
-			Vector2 rightCell = (Vector2) { (int)player.position.x + 1, (int)player.position.y };
-			if (IsWallV(rightCell) && player.position.x + player.radius > rightCell.x)
-			{
-				collisionType = RIGHT;
-				player.position.x = player.position.x - ((player.position.x + player.radius) - (rightCell.x));
-			}
+			ResolvePlayerWallCollision(&player, (Vector2){ (int)player.position.x - 1, (int)player.position.y }, &newPlayerPos, &collisionType); // LEFT
+			ResolvePlayerWallCollision(&player, (Vector2){ (int)player.position.x + 1, (int)player.position.y }, &newPlayerPos, &collisionType); // RIGHT
+			ResolvePlayerWallCollision(&player, (Vector2){ (int)player.position.x, (int)player.position.y - 1 }, &newPlayerPos, &collisionType); // UP
+			ResolvePlayerWallCollision(&player, (Vector2){ (int)player.position.x, (int)player.position.y + 1 }, &newPlayerPos, &collisionType); // DOWN
 
-			Vector2 upCell = (Vector2) { (int)player.position.x, (int)player.position.y - 1 };
-			if (IsWallV(upCell) && player.position.y - player.radius < upCell.y + 1.f)
-			{
-				collisionType = UP;
-				player.position.y = player.position.y + ((upCell.y + 1.f) - (player.position.y - player.radius));
-			}
-
-			Vector2 downCell = (Vector2) { (int)player.position.x, (int)player.position.y + 1 };
-			if (IsWallV(downCell) && player.position.y + player.radius > downCell.y)
-			{
-				collisionType = DOWN;
-				player.position.y = player.position.y - ((player.position.y + player.radius) - (downCell.y));
-			}
+			player.position = newPlayerPos;
 		}
 
 		if (IsKeyPressed(KEY_M))
